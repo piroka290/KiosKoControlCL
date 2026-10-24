@@ -1,16 +1,23 @@
-# KioskoControl — Cámara iPhone y Android
+# KioskoControl · Lector inteligente de productos
 
-## Publicación (reemplaza solamente `index.html`)
-1. Abre tu repositorio `KiosKoControlCL` en GitHub.
-2. Entra al archivo `index.html` y presiona el lápiz (Edit file), o usa Upload files para sustituirlo.
-3. Pega o sube este `index.html` y haz clic en **Commit changes**.
-4. Abre `https://piroka290.github.io/KiosKoControlCL/` directamente en **Safari** (iPhone) o **Chrome** (Android). Si sigue cargando la versión anterior, actualiza la página.
-5. Toca **Venta rápida** → **Escanear código** → **Permitir cámara**.
+Incluye lector de códigos de barras para iOS y Android, reconocimiento automático por código local y consulta a **Open Food Facts** para intentar recuperar nombre, marca, categoría, tipo de producto y fotografía. La consulta requiere Internet y depende de la cobertura del catálogo; no siempre existe una coincidencia.
 
-El lector utiliza `html5-qrcode` (basado en ZXing) desde jsDelivr o unpkg. **Requiere conexión a Internet para cargar esa biblioteca la primera vez**. Compatible con códigos EAN-13, EAN-8, UPC-A, UPC-E y Code 128; si no se puede iniciar, ofrece entrada manual. La cámara requiere HTTPS y permisos del usuario; navegadores internos como WhatsApp pueden restringirla.
+## Flujos
 
-Los productos de demostración usan códigos ficticios. Para leer un producto real, primero regístralo en Inventario usando el código impreso en su envase. Si escaneas un código no reconocido, se ofrece **Registrar este código**.
+- En **Venta rápida**, al leer un código que ya existe, se añade directamente al carrito.
+- En **Inventario → Escanear mercadería**, si el producto existe, se abre su registro de ingreso de stock con el producto seleccionado. Solo debes registrar cantidad, lote, ubicación y costo.
+- Si un código nuevo coincide de forma segura con un producto existente (misma familia, variante y presentación), se asocia el nuevo código al producto existente, sin duplicarlo.
+- Para artículos nuevos, la ficha se autocompleta si Open Food Facts reconoce el código; **no inventa los precios de venta, costos de compra, lote ni cantidad**.
+- Si la búsqueda falla, permite registrar manualmente.
 
-Datos persistidos en este navegador (no sincronizados). Puede bloquearse el almacenamiento en navegación privada; por eso ahora se controla el error de inicio para no dejar la pantalla en blanco.
+## Publicación
 
-Esta entrega conserva el diseño azul suave y las alertas discretas del prototipo anterior.
+Sube **index.html** a la raíz de tu repositorio GitHub `KiosKoControlCL`, reemplazando el archivo anterior. GitHub Pages actualiza la aplicación tras publicar `main`. Usa Safari o Chrome directamente en el celular y concede el permiso de cámara.
+
+## Sobre los códigos de prueba
+
+Los códigos EAN-13 que creamos para pruebas (`7801234567894`, etc.) son ficticios y están contemplados como **datos de demostración**. No representan identificadores comerciales reales. El primero se asocia a la Coca-Cola 500 ml de la demo.
+
+## Datos
+
+Todos los registros siguen guardándose en el navegador de cada dispositivo y no se sincronizan entre teléfonos. Exporta un respaldo antes de reemplazar los datos reales.
