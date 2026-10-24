@@ -9,7 +9,7 @@
   
   <meta name="theme-color" content="#102838">
   <meta name="description" content="KioskoControl: inventario, ventas rápidas, bodega, caja y reportes para un kiosco.">
-  <title>KioskoControl · Gestión inteligente</title>
+  <title>KioskoControl · Gestión inteligente · Cámara iOS/Android</title>
   
   
   <style>
@@ -98,6 +98,20 @@ body{background:#f7f8fb;color:#24354a}
 @media(max-width:850px){.stock-warning-line{flex-wrap:wrap}.stock-warning-copy{min-width:calc(100% - 45px)}.stock-warning-actions{margin-left:43px}}
 @media(max-width:560px){.stock-warning-ribbon{padding:10px 12px;margin-bottom:12px}.stock-warning-actions{display:flex;margin-left:0;width:100%}.stock-warning-actions button{flex:1}.stock-warning-details{grid-template-columns:1fr}}
 
+
+/* Escáner de cámara compatible con iPhone y Android. */
+.scanner-dialog{width:min(550px,calc(100% - 22px));padding:19px;border:1px solid #dbe7ee;background:#fff;box-shadow:0 24px 60px rgba(16,40,56,.24)}
+.scan-camera-shell{border-radius:14px;min-height:210px;overflow:hidden;background:linear-gradient(135deg,#152b3b,#203d51);display:grid;place-items:center;position:relative}
+#barcode-reader{width:100%;min-height:210px;color:white}
+#barcode-reader video{width:100%!important;height:auto!important;max-height:340px;object-fit:cover;border-radius:12px}
+#barcode-reader img{max-width:100%;height:auto}
+#scanner-video{width:100%;min-height:210px;max-height:340px;object-fit:cover}
+#scan-message{padding:10px 12px;border:1px solid #dfece7;background:#f2f9f6;border-radius:10px;color:#325d53;font-size:13px;line-height:1.5}
+.scan-formats{font-size:11px;color:#687d89}
+.scanner-extra{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.scanner-hint{font-size:11px!important;color:#70828f!important;margin-bottom:0}
+@media(max-width:600px){.scanner-dialog{margin:auto;padding:15px;border-radius:18px}.scanner-head h3{font-size:17px}.scan-camera-shell,#barcode-reader{min-height:175px}.scanner-manual .input-inline input{font-size:16px}}
+
 </style>
 </head>
 <body>
@@ -135,10 +149,38 @@ body{background:#f7f8fb;color:#24354a}
   <dialog id="modal" class="modal" aria-label="Formulario"></dialog>
   <dialog id="scanner-dialog" class="scanner-dialog" aria-label="Escanear código de barras">
     <div class="scanner-head"><h3>Escanear código de barras</h3><button data-action="stop-scan" class="icon-btn" aria-label="Cerrar">×</button></div>
-    <video id="scanner-video" autoplay muted playsinline></video><p id="scan-message">Apunta con la cámara hacia el código de barras.</p>
-    <div class="scanner-manual"><label for="manual-barcode">También puedes ingresar el código</label><div class="input-inline"><input id="manual-barcode" inputmode="numeric" placeholder="Código de barras"><button data-action="manual-scan" class="btn primary">Buscar</button></div></div>
+    <div class="scan-camera-shell">
+      <div id="barcode-reader" aria-label="Vista previa de la cámara y lector de código de barras"></div>
+      <video id="scanner-video" autoplay muted playsinline style="display:none"></video>
+    </div>
+    <p id="scan-message" role="status" aria-live="polite">Conectando con la cámara...</p>
+    <div class="scan-formats">Lee EAN-13, EAN-8, UPC-A, UPC-E y Code 128 · iPhone y Android</div>
+    <div class="scanner-manual"><label for="manual-barcode">También puedes escribir un código</label><div class="input-inline"><input id="manual-barcode" inputmode="numeric" autocomplete="off" placeholder="Ej.: 7801234567890"><button data-action="manual-scan" class="btn primary">Buscar</button></div></div>
+    <div class="scanner-extra"><button type="button" data-action="retry-scan" class="btn tiny">↻ Reintentar cámara</button><button type="button" id="register-scanned" data-action="register-scanned" class="btn tiny" style="display:none">＋ Registrar este código</button></div>
+    <p class="scanner-hint">Si abriste la página desde WhatsApp, ábrela en Safari o Chrome para permitir el uso de la cámara.</p>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+/* Aviso de arranque: también captura errores de parseo del script principal. */
+(function(){
+  var reported=false;
+  function showBootError(reason){
+    if(reported)return;
+    var app=document.getElementById('app');
+    if(!app || app.textContent.trim().length>70)return;
+    reported=true;
+    var box=document.createElement('section');
+    box.setAttribute('role','alert');
+    box.style.cssText='margin:24px auto;max-width:640px;padding:22px;border:1px solid #e9d6b2;background:#fffbf1;border-radius:16px;color:#473c34;line-height:1.55';
+    var title=document.createElement('strong');title.textContent='No se pudo iniciar KioskoControl en este navegador.';
+    var info=document.createElement('p');info.textContent='Abre el sitio directamente en Safari o Chrome, actualiza la página e inténtalo de nuevo. Detalle técnico: '+String(reason||'error de inicio').slice(0,180);
+    box.append(title,info);app.replaceChildren(box);
+  }
+  window.addEventListener('error',function(e){showBootError(e.message||'Error de JavaScript')});
+  window.addEventListener('unhandledrejection',function(e){showBootError(e.reason&&e.reason.message||'Error de inicialización')});
+  window.__kioskBootError=showBootError;
+})();
+</script>
   <script>
 /* KioskoControl v1.0 — sin dependencias ni servicios externos.
    NOTA: los datos se guardan SOLO en el navegador de este dispositivo. */
@@ -205,7 +247,7 @@ function validState(s){return s&&s.version===1&&['products','lots','sales','purc
 function load(){try{const raw=localStorage.getItem(KEY);if(!raw)return seed();const obj=JSON.parse(raw);return validState(obj)?obj:seed()}catch(e){console.error('No fue posible cargar el respaldo local',e);return seed()}}
 let data=load(),page='ventas',cart={},search='',inventorySearch='',inventoryCategory='Todas',saleCategory='Todas',movementType='Todos',reportPeriod='week',scanStream=null,scanRaf=null,scanBusy=false;
 function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){alert('No se pudo guardar. Revisa el almacenamiento del navegador y exporta un respaldo.');console.error(e)}}
-if(!localStorage.getItem(KEY))save();
+try{if(!localStorage.getItem(KEY))save();}catch(error){console.warn('Almacenamiento local no disponible: esta sesión usará datos temporales.',error);}
 function product(id){return data.products.find(p=>p.id===id)}
 function productName(id){return product(id)?.name||'Producto eliminado'}
 function lotsOf(id){return data.lots.filter(l=>l.productId===id)}
@@ -321,10 +363,155 @@ function exportCSV(){const rows=[['Fecha','Venta ID','Producto','Cantidad','Prec
 function settings(){openInfo('Datos y respaldo',`<div class="callout"><strong>Almacenamiento local.</strong> Los registros se guardan únicamente en este navegador y dispositivo. No se sincronizan con otro teléfono. Exporta copias de seguridad periódicamente.</div><div class="space-top"><button class="btn full" data-action="export-json">↓ Exportar respaldo JSON</button><label class="btn full" for="import-json" style="margin-top:9px">↑ Importar respaldo JSON</label><input id="import-json" type="file" accept="application/json,.json" class="visually-hidden"><button class="btn danger full" style="margin-top:18px" data-action="reset-demo">Restaurar datos de demostración</button></div><p class="hint">Importar o restaurar reemplaza los registros actuales. Los códigos de barras de muestra son ficticios.</p>`)}
 async function importJSON(file){try{const text=await file.text();if(file.size>10_000_000)throw Error('El archivo excede el máximo permitido (10 MB).');const parsed=JSON.parse(text);if(!validState(parsed))throw Error('El archivo no corresponde a un respaldo de KioskoControl v1.');if(!confirm('¿Reemplazar todos los datos actuales con el respaldo importado?'))return;data=parsed;cart={};save();$('#modal').close();render();toast('Respaldo importado correctamente.')}catch(e){toast(`No se importó: ${e.message}`)}}
 function resetDemo(){if(!confirm('¿Restaurar los datos de demostración? Se perderán los cambios actuales. Exporta un respaldo antes si los necesitas.'))return;data=seed();cart={};save();$('#modal').close();navigate('inicio');toast('Datos de demostración restaurados.')}
-function lookupBarcode(value){const p=data.products.find(x=>x.barcode===String(value).trim());if(p){stopScan();navigate('ventas');changeCart(p.id,1);toast(`${p.name} agregado a la venta.`)}else{toast('Código no encontrado. Agrégalo al catálogo.');$('#scan-message').textContent=`Código ${String(value).slice(0,40)} no registrado en este kiosco.`}}
-async function startScan(){if(page!=='ventas')navigate('ventas');const dialog=$('#scanner-dialog'),msg=$('#scan-message');msg.textContent='Apunta con la cámara hacia el código de barras.';$('#manual-barcode').value='';dialog.showModal();if(!navigator.mediaDevices?.getUserMedia){msg.textContent='Cámara no disponible: usa HTTPS o localhost, o ingresa el código manualmente.';return}if(!('BarcodeDetector' in window)){msg.textContent='Este navegador no admite BarcodeDetector. Usa el código manual o un navegador Android compatible.';return}try{const types=await BarcodeDetector.getSupportedFormats();const formats=['ean_13','ean_8','upc_a','upc_e','code_128'].filter(x=>types.includes(x));if(!formats.length){msg.textContent='El navegador no admite los formatos de barras requeridos. Usa el ingreso manual.';return}const detector=new BarcodeDetector({formats});scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});const video=$('#scanner-video');video.srcObject=scanStream;await video.play();scanBusy=false;const loop=async()=>{if(!scanStream)return;if(!scanBusy&&video.readyState>=2){scanBusy=true;try{const hits=await detector.detect(video);if(hits.length){lookupBarcode(hits[0].rawValue);return}}catch(err){console.debug(err)}finally{scanBusy=false}}scanRaf=requestAnimationFrame(loop)};loop()}catch(err){msg.textContent=`No fue posible activar la cámara (${err.name||'error'}). Puedes ingresar el código manualmente.`;if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}}}
-function stopScan(){if(scanRaf)cancelAnimationFrame(scanRaf);scanRaf=null;if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}$('#scanner-video').srcObject=null;const d=$('#scanner-dialog');if(d.open)d.close()}
-document.addEventListener('click',e=>{const tab=e.target.closest('[data-sale-tab]');if(tab){saleCategory=tab.dataset.saleTab;render();return}const el=e.target.closest('[data-action],[data-page]');if(!el)return;const {action,id,page:target}=el.dataset;if(target){navigate(target);return}switch(action){case'add-cart':changeCart(id,1);break;case'cart-dec':changeCart(id,-1);break;case'clear-cart':cart={};render();break;case'checkout':checkout();break;case'new-product':newProduct();break;case'purchase':purchase();break;case'transfer':transfer();break;case'adjust':adjust();break;case'lot-details':lotDetails(id);break;case'change-photo':changePhoto(id);break;case'cash-open':cashOpen();break;case'cash-move':cashMove();break;case'cash-close':cashClose();break;case'close-modal':$('#modal').close();break;case'toggle-stock-alerts':stockAlertDetailsOpen=!stockAlertDetailsOpen;render();break;case'settings':settings();break;case'export-json':exportJSON();break;case'export-csv':exportCSV();break;case'reset-demo':resetDemo();break;case'scan':startScan();break;case'stop-scan':stopScan();break;case'manual-scan':lookupBarcode($('#manual-barcode').value);break;}});
+/* Lector multiplataforma: html5-qrcode (ZXing) para Safari y Chrome, con Detector nativo de respaldo. */
+let scanReader=null,scanLibraryLoading=null,scanSession=0,scanLastValue='',scanLastAt=0,scanCodeToRegister='';
+async function loadBarcodeLibrary(){
+ if(window.Html5Qrcode)return;
+ if(scanLibraryLoading)return scanLibraryLoading;
+ const sources=[
+  'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+  'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
+ ];
+ scanLibraryLoading=(async()=>{
+  for(const src of sources){
+   try{
+    await new Promise((resolve,reject)=>{
+     const tag=document.createElement('script');tag.src=src;tag.async=true;
+     tag.onload=()=>window.Html5Qrcode?resolve():reject(new Error('Biblioteca incompleta'));
+     tag.onerror=()=>reject(new Error('No se pudo descargar el lector'));
+     document.head.appendChild(tag);
+    });
+    return;
+   }catch(e){console.debug('Proveedor alternativo para escáner:',e.message)}
+  }
+  throw new Error('No se pudo cargar el lector de códigos. Revisa la conexión a Internet.');
+ })();
+ try{await scanLibraryLoading}catch(e){scanLibraryLoading=null;throw e}
+}
+async function lookupBarcode(value){
+ const code=String(value??'').trim();
+ if(!code){$('#scan-message').textContent='Escribe un código válido.';return}
+ const p=data.products.find(x=>String(x.barcode||'').trim()===code);
+ if(p){
+  await stopScan();
+  navigate('ventas');changeCart(p.id,1);
+  toast(`${p.name} agregado al carrito.`);
+ }else{
+  scanCodeToRegister=code;
+  $('#manual-barcode').value=code;
+  $('#register-scanned').style.display='inline-flex';
+  $('#scan-message').textContent=`Código ${code} no registrado. Puedes añadirlo a un nuevo producto.`;
+  if(code!==scanLastValue || Date.now()-scanLastAt>2500)toast('Este código aún no está en el catálogo.');
+ }
+}
+async function startScan(){
+ if(page!=='ventas')navigate('ventas');
+ const d=$('#scanner-dialog'),msg=$('#scan-message');
+ await stopScan();
+ const current=++scanSession;
+ $('#manual-barcode').value='';
+ $('#register-scanned').style.display='none';
+ scanCodeToRegister='';scanLastValue='';scanLastAt=0;
+ d.showModal();
+ msg.textContent='Preparando el lector... Permite el acceso a la cámara trasera cuando Safari o Chrome lo soliciten.';
+ if(!window.isSecureContext){
+  msg.textContent='La cámara necesita HTTPS. Abre la versión publicada en GitHub Pages usando https:// y no el archivo descargado.';
+  return;
+ }
+ if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+  msg.textContent='Este navegador no permite acceder a la cámara. Abre el enlace directamente en Safari o Chrome (fuera de WhatsApp).';
+  return;
+ }
+ try{
+  await loadBarcodeLibrary();
+  if(scanSession!==current || !d.open)return;
+  const formats=window.Html5QrcodeSupportedFormats;
+  const wanted=['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128'].map(k=>formats?.[k]).filter(v=>v!==undefined);
+  const cameraReader=new window.Html5Qrcode('barcode-reader',{formatsToSupport:wanted,verbose:false});
+  scanReader=cameraReader;
+  $('#barcode-reader').style.display='block';
+  $('#scanner-video').style.display='none';
+  const config={fps:12,qrbox:(w,h)=>{const width=Math.max(130,Math.min(300,Math.floor(w*.86)));return {width:width,height:Math.min(Math.floor(width*.54),Math.max(85,Math.floor(h*.5)))}}};
+  const onSuccess=(decoded)=>{
+   if(!d.open || scanSession!==current)return;
+   const code=String(decoded??'').trim();
+   if(!code || (code===scanLastValue && Date.now()-scanLastAt<2200))return;
+   scanLastValue=code;scanLastAt=Date.now();
+   lookupBarcode(code).catch(err=>console.error('Código leído:',err));
+  };
+  let started=false;
+  try{await cameraReader.start({facingMode:'environment'},config,onSuccess,()=>{});started=true}
+  catch(firstErr){
+   console.debug('Cámara trasera no disponible por configuración:',firstErr);
+   const cameras=await window.Html5Qrcode.getCameras();
+   if(!cameras?.length)throw firstErr;
+   const rear=cameras.find(c=>/back|rear|trasera|environment/i.test(c.label))||cameras[cameras.length-1];
+   await cameraReader.start(rear.id,config,onSuccess,()=>{});started=true;
+  }
+  if(scanSession!==current || !d.open){await stopScan();return}
+  if(started)msg.textContent='Cámara encendida. Acerca el código de barras a la zona de lectura y evita reflejos.';
+ }catch(err){
+  console.warn('No fue posible iniciar el escáner multiplataforma:',err);
+  if(scanSession!==current || !d.open)return;
+  if(window.BarcodeDetector){
+   await cleanupScanCamera();
+   msg.textContent='Intentando con el lector nativo de este dispositivo...';
+   try{await startNativeBarcodeScan(current);return}catch(nativeErr){console.warn('Fallo del lector nativo:',nativeErr)}
+  }
+  const name=err?.name||'';
+  if(name==='NotAllowedError'||name==='PermissionDeniedError')msg.textContent='Se rechazó el permiso de cámara. Actívalo en Safari o Chrome y presiona «Reintentar cámara».';
+  else if(name==='NotFoundError')msg.textContent='No se detectó ninguna cámara disponible.';
+  else msg.textContent=`No se pudo iniciar la cámara: ${err?.message||'Error desconocido'}. Puedes escribir el código manualmente.`;
+  await cleanupScanCamera();
+ }
+}
+async function startNativeBarcodeScan(current){
+ const formats=await window.BarcodeDetector.getSupportedFormats();
+ const wanted=['ean_13','ean_8','upc_a','upc_e','code_128'].filter(x=>formats.includes(x));
+ if(!wanted.length)throw new Error('Formatos no compatibles');
+ const detector=new window.BarcodeDetector({formats:wanted});
+ scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+ const video=$('#scanner-video');video.srcObject=scanStream;video.style.display='block';
+ $('#barcode-reader').style.display='none';await video.play();
+ scanBusy=false;
+ const loop=async()=>{
+  if(!scanStream || scanSession!==current)return;
+  if(!scanBusy && video.readyState>=2){
+   scanBusy=true;
+   try{const hits=await detector.detect(video);if(hits.length){const code=hits[0].rawValue;if(code!==scanLastValue||Date.now()-scanLastAt>2200){scanLastValue=code;scanLastAt=Date.now();await lookupBarcode(code)}}}
+   catch(e){console.debug('Lectura en curso:',e)}finally{scanBusy=false}
+  }
+  if(scanStream && scanSession===current)scanRaf=requestAnimationFrame(loop);
+ };loop();
+ $('#scan-message').textContent='Cámara activada con el lector nativo. Apunta al código.';
+}
+async function cleanupScanCamera(){
+ const reader=scanReader;scanReader=null;
+ if(reader){
+  try{if(reader.isScanning)await reader.stop()}catch(e){console.debug('Detener lector:',e)}
+  try{reader.clear()}catch(e){console.debug('Limpiar lector:',e)}
+ }
+ if(scanRaf){cancelAnimationFrame(scanRaf);scanRaf=null}
+ if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}
+ const video=$('#scanner-video');if(video){video.srcObject=null;video.style.display='none'}
+}
+async function stopScan(){
+ ++scanSession;
+ const d=$('#scanner-dialog');
+ if(d?.open)d.close();
+ await cleanupScanCamera();
+}
+function registerScanned(){
+ const code=scanCodeToRegister||$('#manual-barcode').value.trim();
+ if(!code)return;
+ stopScan().then(()=>{
+  newProduct();
+  const codeInput=$('#active-form [name="barcode"]');
+  if(codeInput)codeInput.value=code;
+  toast('Completa el producto y guarda el código escaneado.');
+ });
+}
+document.addEventListener('click',e=>{const tab=e.target.closest('[data-sale-tab]');if(tab){saleCategory=tab.dataset.saleTab;render();return}const el=e.target.closest('[data-action],[data-page]');if(!el)return;const {action,id,page:target}=el.dataset;if(target){navigate(target);return}switch(action){case'add-cart':changeCart(id,1);break;case'cart-dec':changeCart(id,-1);break;case'clear-cart':cart={};render();break;case'checkout':checkout();break;case'new-product':newProduct();break;case'purchase':purchase();break;case'transfer':transfer();break;case'adjust':adjust();break;case'lot-details':lotDetails(id);break;case'change-photo':changePhoto(id);break;case'cash-open':cashOpen();break;case'cash-move':cashMove();break;case'cash-close':cashClose();break;case'close-modal':$('#modal').close();break;case'toggle-stock-alerts':stockAlertDetailsOpen=!stockAlertDetailsOpen;render();break;case'settings':settings();break;case'export-json':exportJSON();break;case'export-csv':exportCSV();break;case'reset-demo':resetDemo();break;case'scan':startScan();break;case'retry-scan':startScan();break;case'register-scanned':registerScanned();break;case'stop-scan':stopScan();break;case'manual-scan':lookupBarcode($('#manual-barcode').value);break;}});
 document.addEventListener('input',e=>{if(e.target.id==='sale-search'){const v=e.target.value,pos=e.target.selectionStart;search=v;const focus=document.activeElement.id;render();const input=$('#sale-search');if(focus==='sale-search'){input.focus();input.setSelectionRange(pos,pos)}}if(e.target.id==='inventory-search'){const v=e.target.value,pos=e.target.selectionStart;inventorySearch=v;render();const input=$('#inventory-search');input.focus();input.setSelectionRange(pos,pos)}});
 document.addEventListener('change',e=>{if(e.target.id==='sale-category'){saleCategory=e.target.value;render()}if(e.target.id==='inventory-category'){inventoryCategory=e.target.value;render()}if(e.target.id==='movement-filter'){movementType=e.target.value;render()}if(e.target.id==='report-period'){reportPeriod=e.target.value;render()}if(e.target.id==='import-json'&&e.target.files?.[0])importJSON(e.target.files[0]);if(e.target.name==='productId'&&e.target.closest('#active-form')?.dataset.kind==='purchase'){const p=product(e.target.value),f=$('#active-form');if(p){f.elements.cost.value=p.cost;f.elements.supplier.value=p.supplier||''}}});
 $('#scanner-dialog').addEventListener('close',stopScan);

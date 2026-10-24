@@ -1,13 +1,16 @@
-# KioskoControl
+# KioskoControl — Cámara iPhone y Android
 
-Prototipo web de inventario, ventas y alertas de stock.
+## Publicación (reemplaza solamente `index.html`)
+1. Abre tu repositorio `KiosKoControlCL` en GitHub.
+2. Entra al archivo `index.html` y presiona el lápiz (Edit file), o usa Upload files para sustituirlo.
+3. Pega o sube este `index.html` y haz clic en **Commit changes**.
+4. Abre `https://piroka290.github.io/KiosKoControlCL/` directamente en **Safari** (iPhone) o **Chrome** (Android). Si sigue cargando la versión anterior, actualiza la página.
+5. Toca **Venta rápida** → **Escanear código** → **Permitir cámara**.
 
-## Publicar en GitHub Pages
+El lector utiliza `html5-qrcode` (basado en ZXing) desde jsDelivr o unpkg. **Requiere conexión a Internet para cargar esa biblioteca la primera vez**. Compatible con códigos EAN-13, EAN-8, UPC-A, UPC-E y Code 128; si no se puede iniciar, ofrece entrada manual. La cámara requiere HTTPS y permisos del usuario; navegadores internos como WhatsApp pueden restringirla.
 
-1. Crea un repositorio público llamado `KioskoControl`.
-2. Extrae el ZIP y sube `index.html` y `README.md` a la raíz de la rama `main` (no subas el ZIP sin extraer).
-3. Ve a Settings > Pages > Build and deployment > Deploy from a branch.
-4. Selecciona `main` y `/ (root)` y guarda.
-5. Abre la URL que GitHub Pages muestre, usualmente https://TU_USUARIO.github.io/KioskoControl/.
+Los productos de demostración usan códigos ficticios. Para leer un producto real, primero regístralo en Inventario usando el código impreso en su envase. Si escaneas un código no reconocido, se ofrece **Registrar este código**.
 
-La información se guarda en el navegador local; no se sincroniza entre dispositivos.
+Datos persistidos en este navegador (no sincronizados). Puede bloquearse el almacenamiento en navegación privada; por eso ahora se controla el error de inicio para no dejar la pantalla en blanco.
+
+Esta entrega conserva el diseño azul suave y las alertas discretas del prototipo anterior.
